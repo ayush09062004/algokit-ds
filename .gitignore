@@ -1,0 +1,24 @@
+# Build
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Packaging
+*.egg-info/
+dist/
+*.whl
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Generated SWIG wrappers
+python/algokit_ds/_swig/*PYTHON_wrap.cxx
+
+# Ignore generated shared libraries
+python/algokit_ds/_swig/*.so

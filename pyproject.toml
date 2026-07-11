@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "algokit-ds"
-version = "0.1.0"
+version = "1.0.0"
 description = "Pythonic wrappers around C++ STL data structures, backed by native SWIG bindings"
 readme = "README.md"
 requires-python = ">=3.9"
