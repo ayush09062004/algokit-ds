@@ -1,18 +1,15 @@
 """
-Builds the SWIG/CMake C++ extensions as part of `pip install`.
+Build the SWIG/CMake native extensions before setuptools scans packages.
 
-IMPORTANT: this runs the CMake build *before* calling setup(), not inside
-a build_ext override. setuptools' default `build` command runs build_py
-(which collects package .py files into the wheel) before build_ext (which
-would normally drive this kind of native build) -- so a build_ext-based
-approach silently ships a wheel missing the entire generated
-algokit_ds._swig subpackage, since those files don't exist yet when
-build_py scans the source tree. Building eagerly here guarantees the
-generated .py wrappers and compiled .so files already exist on disk by
-the time setuptools looks for them.
+Why?
+
+setuptools runs build_py before build_ext. Since SWIG generates Python files
+inside python/algokit_ds/_swig/, those files must already exist before
+build_py starts collecting packages for the wheel.
 """
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -20,29 +17,66 @@ from pathlib import Path
 from setuptools import setup
 from setuptools.dist import Distribution
 
-ROOT = Path(__file__).parent.resolve()
+ROOT = Path(__file__).resolve().parent
 
 
 class BinaryDistribution(Distribution):
-    """Tells setuptools/wheel this package contains compiled, platform-
-    specific binaries (the SWIG .so files), so the resulting wheel is
-    tagged e.g. cp312-cp312-linux_x86_64 instead of the incorrect
-    py3-none-any it would otherwise pick since there's no ext_modules
-    list driving the native build."""
+    """Mark wheel as platform specific."""
 
     def has_ext_modules(self):
         return True
 
 
-def build_native_extensions():
-    try:
-        subprocess.run(["cmake", "--version"], check=True, capture_output=True)
-    except (OSError, subprocess.CalledProcessError) as exc:
+def run_checked(cmd, description):
+    print(f"\n=== {description} ===")
+    print("Command:", " ".join(map(str, cmd)))
+
+    result = subprocess.run(
+        cmd,
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    print("Return code:", result.returncode)
+
+    if result.stdout:
+        print("----- stdout -----")
+        print(result.stdout)
+
+    if result.stderr:
+        print("----- stderr -----")
+        print(result.stderr)
+
+    if result.returncode != 0:
         raise RuntimeError(
-            "CMake must be installed to build algokit-ds "
-            "(the SWIG/C++ layer is compiled at install time). "
-            "Install CMake >= 3.16 and SWIG >= 4.0 and try again."
-        ) from exc
+            f"{description} failed.\n"
+            f"Command: {' '.join(map(str, cmd))}"
+        )
+
+
+def check_required_tools():
+    cmake = shutil.which("cmake")
+    swig = shutil.which("swig")
+
+    if cmake is None:
+        raise RuntimeError(
+            "CMake executable not found in PATH.\n"
+            "Install CMake >= 3.16."
+        )
+
+    if swig is None:
+        raise RuntimeError(
+            "SWIG executable not found in PATH.\n"
+            "Install SWIG >= 4.0."
+        )
+
+    run_checked([cmake, "--version"], "Checking CMake")
+    run_checked([swig, "-version"], "Checking SWIG")
+
+
+def build_native_extensions():
+    check_required_tools()
 
     build_dir = ROOT / "build"
     build_dir.mkdir(exist_ok=True)
@@ -51,21 +85,42 @@ def build_native_extensions():
         "-DCMAKE_BUILD_TYPE=Release",
         f"-DPython3_EXECUTABLE={sys.executable}",
     ]
-    subprocess.run(
-        ["cmake", "-S", str(ROOT), "-B", str(build_dir), *cmake_args],
-        check=True,
+
+    run_checked(
+        [
+            "cmake",
+            "-S",
+            str(ROOT),
+            "-B",
+            str(build_dir),
+            *cmake_args,
+        ],
+        "Configuring CMake",
     )
-    subprocess.run(
-        ["cmake", "--build", str(build_dir), "-j", str(os.cpu_count() or 2)],
-        check=True,
+
+    run_checked(
+        [
+            "cmake",
+            "--build",
+            str(build_dir),
+            "-j",
+            str(os.cpu_count() or 2),
+        ],
+        "Building extensions",
     )
 
 
-# Skip the native build for commands that don't need it (e.g. `--help`,
-# `egg_info` alone) but run it for anything that actually produces a
-# package (build, bdist_wheel, install, develop, ...).
-_SKIP_FOR = {"--help", "--help-commands", "egg_info", "dist_info"}
-if not _SKIP_FOR.intersection(sys.argv):
+_SKIP_COMMANDS = {
+    "--help",
+    "--help-commands",
+    "egg_info",
+    "dist_info",
+    "clean",
+}
+
+
+if not any(arg in _SKIP_COMMANDS for arg in sys.argv):
     build_native_extensions()
+
 
 setup(distclass=BinaryDistribution)
