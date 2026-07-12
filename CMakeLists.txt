@@ -49,6 +49,7 @@ set(ALGOKIT_MODULES
     map
     multimap
     unordered_map
+    algorithms
 )
 
 # A tiny static "sink" target that exists only to own a precompiled header.
@@ -104,3 +105,12 @@ foreach(mod ${ALGOKIT_MODULES})
             RUNTIME_OUTPUT_DIRECTORY ${SWIG_OUT_DIR}
     )
 endforeach()
+
+# ---------------------------------------------------------------------------
+# `algorithms` needs actual C++ source of its own (algorithms.cpp) and a
+# header search path for algorithms.hpp -- every other module's logic
+# lives entirely in STL headers, so this is additive rather than a change
+# to the generic loop above.
+# ---------------------------------------------------------------------------
+target_sources(algorithms PRIVATE ${CMAKE_SOURCE_DIR}/cpp/algorithms/algorithms.cpp)
+target_include_directories(algorithms PRIVATE ${CMAKE_SOURCE_DIR}/cpp/algorithms)
