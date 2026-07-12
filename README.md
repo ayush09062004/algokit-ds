@@ -5,6 +5,16 @@ Pythonic wrappers around C++ STL data structures, backed by native
 `std::map`, `std::unordered_set`, etc. performance under a small,
 consistent Python API.
 
+## Installation Instructions(≈1–1.2 minutes)
+> **Note:** The first installation compiles the native C++ extension, so it may take around **1–1.2 minutes** for complete installation.
+
+```bash
+!apt-get update -qq
+!apt-get install -y swig
+
+!pip install git+https://github.com/ayush09062004/algokit-ds.git
+```
+
 ```python
 from algokit_ds import vector, map
 
