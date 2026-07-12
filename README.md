@@ -5,7 +5,7 @@ Pythonic wrappers around C++ STL data structures, backed by native
 `std::map`, `std::unordered_set`, etc. performance under a small,
 consistent Python API.
 
-## Installation Instructions(≈1–1.2 minutes)
+## Quick Installation Instructions(≈1–1.2 minutes)
 > **Note:** The first installation compiles the native C++ extension, so it may take around **1–1.2 minutes** for complete installation.
 
 ```bash
@@ -49,11 +49,7 @@ Inspired by [cstl](https://github.com/fuzihaofzh/cstl) — see
 - [Credits](#credits)
 - [License](#license)
 
-## Install
-
-```bash
-pip install algokit-ds
-```
+## Install from Source
 
 Building from source requires a C++17 compiler, CMake >= 3.16, and
 SWIG >= 4.0 (the extensions are compiled during `pip install`):
