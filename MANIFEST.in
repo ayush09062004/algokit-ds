@@ -1,10 +1,8 @@
 include CMakeLists.txt
 include README.md
-include LICENSE
 
 recursive-include swig *.i
-recursive-include include *.h *.hpp
-recursive-include src *.c *.cc *.cpp *.cxx
+recursive-include cmake *.cpp 
 
 graft python
 

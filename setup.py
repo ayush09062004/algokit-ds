@@ -27,7 +27,7 @@ class BinaryDistribution(Distribution):
         return True
 
 
-def run_checked(cmd, description):
+def run_checked(cmd, description, env=None):
     print(f"\n=== {description} ===")
     print("Command:", " ".join(map(str, cmd)))
 
@@ -36,6 +36,7 @@ def run_checked(cmd, description):
         cwd=ROOT,
         capture_output=True,
         text=True,
+        env=env,
     )
 
     print("Return code:", result.returncode)
@@ -118,6 +119,23 @@ def check_required_tools():
     return cmake
 
 
+def usable_cpu_count():
+    """
+    Number of CPUs this process can actually use.
+
+    os.cpu_count() reports the host's total core count, which can be higher
+    than what a quota-limited or virtualized environment (containers,
+    Colab, etc.) actually lets this process run on. Spawning more parallel
+    compiler jobs than that oversubscribes the machine and makes the build
+    *slower*, not faster.
+    """
+    try:
+        return len(os.sched_getaffinity(0))
+    except AttributeError:
+        # sched_getaffinity is POSIX-only (no-op on e.g. macOS).
+        return os.cpu_count() or 2
+
+
 def build_native_extensions():
     cmake = check_required_tools()
 
@@ -129,6 +147,19 @@ def build_native_extensions():
         f"-DPython3_EXECUTABLE={sys.executable}",
     ]
 
+    if shutil.which("ninja"):
+        cmake_args.append("-GNinja")
+
+    env = os.environ.copy()
+    if shutil.which("ccache"):
+        # Without this, ccache treats every compile that touches our
+        # precompiled header as uncacheable and silently does nothing.
+        existing = env.get("CCACHE_SLOPPINESS", "")
+        needed = {"pch_defines", "time_macros"}
+        env["CCACHE_SLOPPINESS"] = ",".join(
+            sorted(needed | {s for s in existing.split(",") if s})
+        )
+
     run_checked(
         [
             cmake,
@@ -139,6 +170,7 @@ def build_native_extensions():
             *cmake_args,
         ],
         "Configuring CMake",
+        env=env,
     )
 
     run_checked(
@@ -147,9 +179,10 @@ def build_native_extensions():
             "--build",
             str(build_dir),
             "-j",
-            str(os.cpu_count() or 2),
+            str(usable_cpu_count()),
         ],
         "Building extensions",
+        env=env,
     )
 
 
