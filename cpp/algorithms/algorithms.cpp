@@ -4,6 +4,10 @@
 // wrap.cxx just declares + calls these, it doesn't need to re-instantiate
 // them), and gives future contributors one obvious place to add a line
 // when a new container/type combination gets support.
+//
+// Deliberately covers only the original v1.0.0 six -- see the note at
+// the top of algorithms.hpp for why algorithms added afterward rely on
+// implicit instantiation instead of being added here too.
 
 #include "algorithms.hpp"
 

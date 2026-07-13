@@ -38,6 +38,7 @@ include_directories(${Python3_INCLUDE_DIRS})
 # SWIG interface files
 # ---------------------------------------------------------------------------
 set(ALGOKIT_MODULES
+    algorithms
     vector
     deque
     stack
@@ -49,7 +50,6 @@ set(ALGOKIT_MODULES
     map
     multimap
     unordered_map
-    algorithms
 )
 
 # A tiny static "sink" target that exists only to own a precompiled header.
@@ -69,6 +69,10 @@ target_precompile_headers(algokit_pch PRIVATE
     <map>
     <unordered_map>
     <string>
+    <algorithm>
+    <numeric>
+    <random>
+    <utility>
 )
 
 foreach(mod ${ALGOKIT_MODULES})
