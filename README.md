@@ -1,15 +1,17 @@
 # AlgoKit DS
 **Native C++ STL Containers & Algorithms for Python**
 
-Pythonic wrappers around native C++ STL containers and algorithms backed by native [SWIG](https://www.swig.org/) bindings. AlgoKit DS provides familiar C++ STL containers such as `std::vector`,`std::deque`, `std::map`, and `std::unordered_set`, together with 46 native STL algorithms — sorting, searching, partitioning, heaps, merging, set operations, permutations, and `<numeric>` — all through a clean and Pythonic interface.
+Pythonic wrappers around native C++ STL containers and algorithms backed by native [SWIG](https://www.swig.org/) bindings. AlgoKit DS provides familiar C++ STL containers such as `std::vector`,`std::deque`, `std::map`, and `std::unordered_set`, together with native STL algorithms like `sort`, `reverse`, `binary_search`, `lower_bound`, and
+`upper_bound`, all through a clean and Pythonic interface.
 
 Unlike most Python data structure libraries, AlgoKit DS executes operations directly on the underlying C++ containers without converting them into Python
 lists. You get real `std::vector`,`std::map`, `std::unordered_set`, etc. performance under a small, consistent Python API.
 
+- For Documentation & Visualization:- https://ayush09062004.github.io/algokit-ds-documentation/
+- For Benchmark Results:- (Benchmarks.ipynb) in https://github.com/ayush09062004/algokit-ds-documentation
+
 Inspired by [cstl](https://github.com/fuzihaofzh/cstl) — see
 [Credits](#credits) below.
-
-- Refer for Documentation & Visualization: https://ayush09062004.github.io/algokit-ds-documentation/ 
 
 ## Quick Installation Instructions(≈1.5–2 minutes)
 > **Note:** The first installation compiles the native C++ extension, so it may take around **1.5–2 minutes** for complete installation.
@@ -64,7 +66,7 @@ print(binary_search(v,3))
   - [map / multimap / unordered\_map](#map--multimap--unordered_map)
 - [Known limitations](#known-limitations)
 - [Supported algorithms](#supported-algorithms)
-- [Documentation site](#documentation-site)
+- [Benchmarks](#benchmarks)
 - [Architecture](#architecture)
 - [Extending](#extending)
 - [Development](#development)
@@ -330,11 +332,18 @@ Contributions welcome.
 
 ## Supported algorithms
 
-Algorithms operate directly on the underlying native C++ STL containers —
-nothing is copied into a Python list first, and nothing is reimplemented
-in Python. 46 algorithms are currently exposed, spanning sorting,
-searching, modification, reordering, partitioning, merging, set
-operations, heaps, permutations, and `<numeric>`.
+Algorithms operate directly on the underlying native C++ STL containers.
+
+| Python API | STL Equivalent |
+|------------|----------------|
+| `sort()` | `std::sort` |
+| `stable_sort()` | `std::stable_sort` |
+| `reverse()` | `std::reverse` |
+| `binary_search()` | `std::binary_search` |
+| `lower_bound()` | `std::lower_bound` |
+| `upper_bound()` | `std::upper_bound` |
+
+## Algorithms
 
 ```python
 from algokit_ds import vector
@@ -358,129 +367,104 @@ reverse(v)
 assert list(v)==[5,4,3,2,1]
 ```
 
-Supported containers: `vector`, `deque`. Supported element types: `int`,
-`float`, `str`, except where a function needs `operator-`, `operator*`,
-or `operator++` (`adjacent_difference`, `inner_product`, `iota` — `int`
-and `float` only, noted below). Functions taking a `predicate` or
-`generator` accept a plain Python callable, invoked once per element
-directly from C++; if it raises, the original exception propagates
-unchanged. Functions marked **"sorted input"** carry the same
-precondition as the underlying STL algorithm — they don't sort for you
-and don't check.
+| Function | Description |
+|-----------|-------------|
+| `sort(container)` | Sorts the container in ascending order. |
+| `stable_sort(container)` | Stable sorting algorithm. |
+| `reverse(container)` | Reverses the container in-place. |
+| `binary_search(container,x)` | Returns `True` if the value exists. |
+| `lower_bound(container,x)` | Returns the first index not less than `x`. |
+| `upper_bound(container,x)` | Returns the first index greater than `x`. |
 
-### Sorting
+Algorithms currently support:
 
-| Function | STL equivalent | Description |
+- vector
+- deque
+
+
+## Benchmarks
+
+These numbers come from an independent verification notebook that builds
+`algokit-ds` from source exactly as the instructions above describe, then
+times every operation against an equivalent pure-Python implementation on
+identical inputs, with a correctness `assert` baked into every benchmark
+function — if a result were wrong, the cell would raise instead of printing
+a bogus number. Measured on a Google Colab CPU runtime; absolute times will
+vary with the machine, but the relative ratios should be stable.
+
+There are two very different access patterns benchmarked here, and they
+give opposite answers on purpose — reporting only one of them would be
+misleading.
+
+### 1. Algorithms — one native call runs the whole loop in C++ (n = 500,000)
+
+This is `benchmarks/algorithms_benchmark.py`, covering one representative
+algorithm from every category `algokit_ds.algorithms` implements.
+
+| Category | Operation | Python | `algokit_ds` | Speedup | Compared against |
+|---|---|---:|---:|---:|---|
+| searching | `find` | 0.01195s | 0.00022s | **53.82×** | `list.index()` |
+| searching | `count` | 0.00775s | 0.00036s | **21.48×** | `list.count()` |
+| searching | `binary_search` + `lower_bound` | 0.00002s | 0.00010s | 0.17× | `bisect` (also C-implemented) |
+| min/max | `min_element` | 0.00752s | 0.00060s | **12.59×** | `min()` |
+| modification | `remove` | 0.01262s | 0.00147s | **8.61×** | erase-remove idiom vs list comprehension |
+| modification | `unique` | 0.07498s | 0.00147s | **51.13×** | consecutive-duplicate removal, pre-sorted data |
+| modification | `fill` | 0.01273s | 0.00008s | **153.17×** | Python `for`-loop assignment |
+| reordering | `rotate` | 0.00928s | 0.00106s | **8.72×** | slicing |
+| reordering | `shuffle` | 0.31605s | 0.00492s | **64.24×** | `random.shuffle()` |
+| partitioning | `partition` | 0.15220s | 0.07644s | **1.99×** | two list comprehensions |
+| merging | `merge` | 0.20860s | 0.23284s | 0.90× | `sorted(a + b)` |
+| set algorithms | `set_union` | 0.20724s | 0.03262s | **6.35×** | `sorted(set(a).union(set(b)))` |
+| heap | `make_heap` + `sort_heap` | 0.18008s | 0.08613s | **2.09×** | `sorted()` |
+| permutation | `is_permutation` | 0.00284s | 0.13596s | 0.02× | `sorted(a) == sorted(b)` (size-capped) |
+| permutation | `next_permutation` | 0.00947s | 0.00918s | 1.03× | single step, fixed small n |
+| numeric | `accumulate` | 0.00435s | 0.00063s | **6.90×** | `sum()` |
+| numeric | `partial_sum` | 0.01222s | 0.04583s | 0.27× | `itertools.accumulate` |
+| numeric | `adjacent_difference` | 0.03530s | 0.04858s | 0.73× | Python list comprehension |
+
+Most algorithms land in the **~5×–150× faster** range. The exceptions
+(`merge`, `is_permutation`, `partial_sum`, `adjacent_difference`,
+`binary_search`) are all cases where the Python-side baseline is *also*
+a tight, C-implemented operation (`bisect`, `sorted()`, `itertools`), or
+where the current C++ implementation isn't yet the optimal one for that
+op — these are documented here rather than hidden.
+
+### 2. Containers — many small per-call operations from Python (n = 200,000)
+
+This measures the other side of the tradeoff: individual `append`/`[i]`/
+membership/insert calls issued one at a time from Python, which is the
+access pattern most everyday code actually uses (as opposed to Section 1,
+where one native call runs an entire algorithm inside C++).
+
+| Operation | Python | `algokit_ds` | Ratio | Compared against |
+|---|---:|---:|---:|---|
+| `vector.append` (build N-element container) | 0.00645s | 0.04363s | 0.15× | `list.append` vs `vector.append` |
+| `vector` indexed sum (read all N elements) | 0.00785s | 0.08410s | 0.09× | `list[i]` vs `vector[i]` |
+| `unordered_set` membership (N inserts + N lookups) | 0.09920s | 0.19005s | 0.52× | `set` vs `unordered_set` |
+| `unordered_map` insert + lookup (N keys) | 0.05037s | 0.17614s | 0.29× | `dict` vs `unordered_map` |
+
+**Why these ratios are below 1×, and why that's the honest result:** every
+`v.append(x)`, `v[i]`, or `m[k]` call here crosses the Python↔C++ (SWIG)
+boundary individually — one marshalling round-trip per element, N times.
+That per-call overhead outweighs the raw speed of the underlying `std::`
+container at these sizes, so plain Python `list`/`set`/`dict` win when
+used this way. `algokit_ds` is fastest when you hand it a whole container
+and let one native algorithm (Section 1) run the loop *inside* C++, not
+when Python itself drives the loop one call at a time (this section).
+
+### Summary
+
+| Benchmark | What it measures | Typical result |
 |---|---|---|
-| `sort(container)` | `std::sort` | Sorts in ascending order, in place. |
-| `stable_sort(container)` | `std::stable_sort` | Like `sort`, but preserves the relative order of equal elements. |
+| Algorithms (n=500,000) | One native call runs a whole O(n) algorithm in C++ | **~5×–150× faster** than Python, depending on algorithm |
+| Containers (n=200,000) | Many small per-element calls across the Python↔C++ boundary | **~0.1×–0.5×** — plain Python wins at this access pattern |
 
-### Searching
-
-| Function | STL equivalent | Description |
-|---|---|---|
-| `binary_search(container, x)` | `std::binary_search` | *(sorted input)* Returns `True` if `x` is present. |
-| `lower_bound(container, x)` | `std::lower_bound` | *(sorted input)* Index of the first element not less than `x`. |
-| `upper_bound(container, x)` | `std::upper_bound` | *(sorted input)* Index of the first element greater than `x`. |
-| `find(container, x)` | `std::find` | Index of the first match, or `None` if absent. |
-| `find_if(container, predicate)` | `std::find_if` | Index of the first element satisfying `predicate(value)`, or `None`. |
-| `count(container, x)` | `std::count` | Number of elements equal to `x`. |
-| `count_if(container, predicate)` | `std::count_if` | Number of elements satisfying `predicate(value)`. |
-
-### Min / max
-
-| Function | STL equivalent | Description |
-|---|---|---|
-| `min_element(container)` | `std::min_element` | Index of the smallest element. Raises `IndexError` if empty. |
-| `max_element(container)` | `std::max_element` | Index of the largest element. Raises `IndexError` if empty. |
-| `minmax_element(container)` | `std::minmax_element` | `(min_index, max_index)` tuple. Raises `IndexError` if empty. |
-
-### Modification
-
-| Function | STL equivalent | Description |
-|---|---|---|
-| `replace(container, old, new)` | `std::replace` | Every element equal to `old` becomes `new`. |
-| `replace_if(container, predicate, new)` | `std::replace_if` | Every element satisfying `predicate` becomes `new`. |
-| `remove(container, x)` | erase-remove + `std::remove` | Removes every element equal to `x`; the container actually shrinks. |
-| `remove_if(container, predicate)` | erase-remove + `std::remove_if` | Removes every element satisfying `predicate`; the container shrinks. |
-| `unique(container)` | erase-remove + `std::unique` | Removes *consecutive* duplicates in place; `sort()` first for global dedup. |
-| `unique_copy(container)` | `std::unique_copy` | Returns a **new** container with consecutive duplicates removed; leaves the original untouched. |
-| `fill(container, x)` | `std::fill` | Every element becomes `x`. |
-| `fill_n(container, n, x)` | `std::fill_n` | The first `n` elements become `x`. Raises `IndexError` if `n` is out of range. |
-| `generate(container, generator)` | `std::generate` | Every element is replaced by `generator()`, called once per element from C++. |
-| `generate_n(container, n, generator)` | `std::generate_n` | The first `n` elements are replaced by `generator()`. |
-| `swap_ranges(a, b)` | `std::swap_ranges` | Swaps elements of `a`/`b` pairwise, up to the shorter length. Same container/type required. |
-
-### Reordering
-
-| Function | STL equivalent | Description |
-|---|---|---|
-| `rotate(container, n)` | `std::rotate` | The element at index `n` becomes the new first element, in place. |
-| `rotate_copy(container, n)` | `std::rotate_copy` | Returns a **new**, rotated container; leaves the original untouched. |
-| `shuffle(container, seed=None)` | `std::shuffle` (`std::mt19937`) | Random shuffle. `seed=None` uses `std::random_device`; pass an `int` for reproducibility. |
-
-### Partitioning
-
-| Function | STL equivalent | Description |
-|---|---|---|
-| `partition(container, predicate)` | `std::partition` | Reorders so matching elements come first; returns the partition index. |
-| `stable_partition(container, predicate)` | `std::stable_partition` | Like `partition`, but preserves relative order within each group. |
-| `partition_copy(container, predicate)` | `std::partition_copy` | Returns `(matched, unmatched)` new containers; leaves the original untouched. |
-| `is_partitioned(container, predicate)` | `std::is_partitioned` | `True` if every matching element precedes every non-matching one. |
-| `partition_point(container, predicate)` | `std::partition_point` | *(sorted input)* Index of the first element for which `predicate` is `False`. |
-
-### Merging *(sorted input)*
-
-| Function | STL equivalent | Description |
-|---|---|---|
-| `merge(a, b)` | `std::merge` | Returns a new, sorted container with all elements of `a` and `b`. |
-| `inplace_merge(container, mid)` | `std::inplace_merge` | Merges the two sorted subranges `container[:mid]` and `container[mid:]` in place. |
-
-### Set algorithms *(sorted input)*
-
-| Function | STL equivalent | Description |
-|---|---|---|
-| `set_union(a, b)` | `std::set_union` | Elements present in `a`, `b`, or both. |
-| `set_intersection(a, b)` | `std::set_intersection` | Elements present in both `a` and `b`. |
-| `set_difference(a, b)` | `std::set_difference` | Elements present in `a` but not `b`. |
-| `set_symmetric_difference(a, b)` | `std::set_symmetric_difference` | Elements present in exactly one of `a`, `b`. |
-| `includes(a, b)` | `std::includes` | `True` if every element of `b` is present in `a`. |
-
-### Heap
-
-| Function | STL equivalent | Description |
-|---|---|---|
-| `make_heap(container)` | `std::make_heap` | Rearranges into a max-heap in place. |
-| `push_heap(container)` | `std::push_heap` | The new element must already be at the back (e.g. via `.append()`) before calling. |
-| `pop_heap(container)` | `std::pop_heap` | Moves the max to the back but doesn't remove it — call `.pop()` afterward. |
-| `sort_heap(container)` | `std::sort_heap` | Turns a valid heap into a fully sorted range in place. |
-| `is_heap(container)` | `std::is_heap` | `True` if the container satisfies the heap property. |
-| `is_heap_until(container)` | `std::is_heap_until` | Index up to which the heap property holds. |
-
-### Permutation
-
-| Function | STL equivalent | Description |
-|---|---|---|
-| `next_permutation(container)` | `std::next_permutation` | In-place next lexicographic permutation. Returns `False` (and resets to ascending) after the last one. |
-| `prev_permutation(container)` | `std::prev_permutation` | Mirror image of `next_permutation`. |
-| `is_permutation(a, b)` | `std::is_permutation` | `True` if `a` and `b` hold the same elements in any order. |
-
-### Numeric (`<numeric>`)
-
-| Function | STL equivalent | Description |
-|---|---|---|
-| `accumulate(container, init)` | `std::accumulate` | Folds the container into a single value, starting from `init` (required — use `""` for `str`). |
-| `adjacent_difference(container)` | `std::adjacent_difference` | New container where element `i>0` is `container[i] - container[i-1]`. `int`/`float` only. |
-| `partial_sum(container)` | `std::partial_sum` | New container of running totals. |
-| `inner_product(a, b, init)` | `std::inner_product` | Dot product: `sum(a[i] * b[i]) + init`. Same length required. `int`/`float` only. |
-| `iota(container, start)` | `std::iota` | Fills in place with `start, start+1, start+2, ...`. `int`/`float` only. |
-
-## Documentation site
-
-A full interactive reference — every container and every algorithm with
-a live, runnable visualization — ships in `docs/index.html`. Open it
-directly in a browser, no build step required.
-
+If your workload can express itself as "build/load a container, then call
+one `algokit_ds.algorithms` function on it," you get the native speedup.
+If your workload is many individual element-by-element operations driven
+from Python, a plain `list`/`set`/`dict` will currently be faster — that's
+a property of the SWIG marshalling boundary, not something this benchmark
+is trying to talk around.
 
 ## Architecture
 
